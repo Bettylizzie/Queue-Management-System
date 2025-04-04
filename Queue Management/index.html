@@ -7,14 +7,42 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="form-container">
-        <h2>Join the Queue</h2>
-        <form id="joinQueueForm">
-            <input type="text" id="name" name="name" placeholder="Enter your name" required>
-            <input type="text" id="phone" name="phone" placeholder="Enter your phone number" required>
-            <button type="submit">Join Queue</button>
-        </form>
-        <div id="successMessage" class="success-message"></div> <!-- Success message container -->
+    <div class="container">
+        <div class="form-container">
+            <h2>Join the Queue</h2>
+            <form id="joinQueueForm">
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name" placeholder="Enter your full name" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" required>
+                    <small class="hint">Format: 1234567890 or +1234567890</small>
+                </div>
+                <button type="submit" class="submit-btn">Join Queue</button>
+            </form>
+            <div id="message" class="message"></div>
+        </div>
+
+        <div class="queue-status">
+            <h3>Current Queue Status</h3>
+            <div class="status-container">
+                <div class="status-card">
+                    <span class="status-number" id="waiting-count">0</span>
+                    <span class="status-label">Waiting</span>
+                </div>
+                <div class="status-card">
+                    <span class="status-number" id="called-count">0</span>
+                    <span class="status-label">Called</span>
+                </div>
+                <div class="status-card">
+                    <span class="status-number" id="completed-count">0</span>
+                    <span class="status-label">Completed</span>
+                </div>
+            </div>
+            <div id="position-message" class="position-message"></div>
+        </div>
     </div>
 
     <script src="script.js"></script>

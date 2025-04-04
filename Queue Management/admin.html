@@ -7,81 +7,51 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h2>Queue Management</h2>
-    <table id="queue-list">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Phone</th>
-                <th>Status</th>
-                <th>Time Joined</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Dynamic queue rows will be loaded here -->
-        </tbody>
-    </table>
-    <button id="call-next">Call Next Customer</button>
+    <div class="admin-container">
+        <h2>Queue Management</h2>
+        <table id="queue-list">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Time Joined</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Dynamic queue rows will be loaded here -->
+            </tbody>
+        </table>
+        <button id="call-next">Call Next Customer</button>
+    </div>
 
+    <script src="script.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            loadQueue();
+            // Reference the shared functions from script.js
+            const { loadQueue, callNextCustomer } = window.queueFunctions || {};
 
-            // Load the queue dynamically
-            function loadQueue() {
-                fetch("http://localhost/Queue%20Management%20system/php/get_queue.php")
-                    .then(response => response.json())
-                    .then(data => {
-                        let queueTable = document.getElementById("queue-list").getElementsByTagName('tbody')[0];
-                        queueTable.innerHTML = ""; // Clear table first
-                        
-                        data.forEach(customer => {
-                            let row = `
-                                <tr>
-                                    <td>${customer.name}</td>
-                                    <td>${customer.phone}</td>
-                                    <td>${customer.created_at}</td>
-                                    <td><button class="call-btn" data-id="${customer.id}">Call</button></td>
-                                </tr>
-                            `;
-                            queueTable.innerHTML += row;
-                        });
+            // Load initial queue
+            if (loadQueue) {
+                loadQueue();
+                
+                // Set up auto-refresh
+                setInterval(loadQueue, 5000); // Auto-refresh every 5 seconds
 
-                        attachCallButtons();
-                    });
-            }
-
-            // Attach event listener to call buttons
-            function attachCallButtons() {
-                document.querySelectorAll(".call-btn").forEach(button => {
-                    button.addEventListener("click", function () {
-                        let customerId = this.getAttribute("data-id");
-                        callNextCustomer(customerId);
-                    });
+                // Call Next button action
+                document.getElementById("call-next").addEventListener("click", function () {
+                    // Get the first waiting customer if no ID provided
+                    const firstWaiting = document.querySelector(".call-btn");
+                    if (firstWaiting) {
+                        callNextCustomer(firstWaiting.getAttribute("data-id"));
+                    } else {
+                        alert("No customers in queue");
+                    }
                 });
+            } else {
+                console.error("Queue functions not loaded");
             }
-
-            // Call next customer when button is clicked
-            function callNextCustomer(customerId) {
-                fetch("http://localhost/Queue%20Management%20system/php/next_customer.php?id=" + customerId)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.message) {
-                            alert(data.message); // No customers left
-                        } else {
-                            alert("Calling: " + data.name);
-                            loadQueue(); // Refresh queue after calling
-                        }
-                    });
-            }
-
-            // Call Next button action
-            document.getElementById("call-next").addEventListener("click", function () {
-                callNextCustomer(); // Here, you may want to adjust to handle the logic to get the next customer properly
-            });
-
-            setInterval(loadQueue, 5000); // Auto-refresh queue every 5 seconds
         });
     </script>
 </body>

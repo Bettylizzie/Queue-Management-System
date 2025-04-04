@@ -1,45 +1,135 @@
 <?php
-require_once __DIR__ . '/vendor/autoload.php';
-include('db_connect.php');
+require_once('db_connect.php');
 
-if (isset($_GET['id'])) {
-    $id = $_GET['id'];
-    
-    // Get customer details
-    $sql = "SELECT * FROM queue WHERE id = $id";
-    $result = $conn->query($sql);
-    $customer = $result->fetch_assoc();
+// Set headers for JSON response
+header('Content-Type: application/json');
+header('Cache-Control: no-cache, must-revalidate');
 
-    if ($customer) {
-        // Sending SMS using Twilio (or another SMS API)
-        $sid = 'your_twilio_sid';
-        $token = 'your_twilio_token';
-        $from = 'your_twilio_phone_number';
-        $to = $customer['phone'];
+// Initialize response array
+$response = [
+    'success' => false,
+    'message' => '',
+    'customer' => null
+];
 
-        // Twilio API request to send SMS
-        $client = new \Twilio\Rest\Client($sid, $token);
-        $message = $client->messages->create(
-            $to,
-            [
-                'from' => $from,
-                'body' => 'It\'s your turn in the queue. Please proceed to the counter.'
-            ]
-        );
-
-        // Now delete the customer from the queue
-        $deleteSql = "DELETE FROM queue WHERE id = $id";
-        if ($conn->query($deleteSql) === TRUE) {
-            echo json_encode(["success" => true, "name" => $customer['name']]);
-        } else {
-            echo json_encode(["success" => false, "message" => "Error deleting customer"]);
-        }
-    } else {
-        echo json_encode(["success" => false, "message" => "Customer not found"]);
+try {
+    // Check database connection
+    if ($conn->connect_error) {
+        throw new Exception('Database connection failed');
     }
-} else {
-    echo json_encode(["success" => false, "message" => "Invalid request"]);
+
+    // Validate request method
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        throw new Exception('Invalid request method. Use GET.');
+    }
+
+    // Validate customer ID
+    if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+        throw new Exception('Invalid customer ID');
+    }
+
+    $customer_id = (int)$_GET['id'];
+
+    // Start transaction
+    $conn->begin_transaction();
+
+    // Get and lock customer record
+    $stmt = $conn->prepare("SELECT * FROM queue WHERE id = ? FOR UPDATE");
+    if (!$stmt) {
+        throw new Exception('Prepare failed: ' . $conn->error);
+    }
+    
+    $stmt->bind_param("i", $customer_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $customer = $result->fetch_assoc();
+    $stmt->close();
+
+    if (!$customer) {
+        throw new Exception('Customer not found in queue');
+    }
+
+    // Update status to 'called' first (instead of immediate deletion)
+    $update_stmt = $conn->prepare("UPDATE queue SET status = 'called', called_at = NOW() WHERE id = ?");
+    $update_stmt->bind_param("i", $customer_id);
+    $update_stmt->execute();
+    
+    if ($update_stmt->affected_rows !== 1) {
+        throw new Exception('Failed to update customer status');
+    }
+    $update_stmt->close();
+
+    // Commit transaction
+    $conn->commit();
+
+    // Prepare success response
+    $response = [
+        'success' => true,
+        'message' => 'Customer successfully called',
+        'customer' => [
+            'id' => $customer['id'],
+            'name' => htmlspecialchars($customer['name']),
+            'phone' => htmlspecialchars($customer['phone']),
+            'status' => 'called'
+        ]
+    ];
+
+    // Optional: Send SMS notification
+    if (isset($_GET['send_sms']) && $_GET['send_sms'] === 'true') {
+        $sms_sent = sendSmsNotification($customer['phone'], $customer['name']);
+        $response['sms_sent'] = $sms_sent;
+    }
+
+} catch (Exception $e) {
+    // Rollback transaction if active
+    if (isset($conn) && $conn->begin_transaction()) {
+        $conn->rollback();
+    }
+    
+    $response['message'] = $e->getMessage();
+    http_response_code(400); // Bad request for client errors
+} finally {
+    // Close database connection
+    if (isset($conn)) {
+        $conn->close();
+    }
 }
 
-$conn->close();
+// Return JSON response
+echo json_encode($response);
 
+/**
+ * Helper function to send SMS notification
+ */
+function sendSmsNotification($phone, $name) {
+    // Implement your SMS provider integration here
+    // This is a placeholder implementation
+    
+    try {
+        /*
+        // Example with Twilio:
+        $sid = getenv('TWILIO_SID');
+        $token = getenv('TWILIO_TOKEN');
+        $from = getenv('TWILIO_FROM');
+        
+        $client = new \Twilio\Rest\Client($sid, $token);
+        $message = $client->messages->create(
+            $phone,
+            [
+                'from' => $from,
+                'body' => "Hello $name, it's your turn! Please proceed to counter."
+            ]
+        );
+        return true;
+        */
+        
+        // For now just log that we would send SMS
+        error_log("SMS would be sent to $phone for customer $name");
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("SMS sending failed: " . $e->getMessage());
+        return false;
+    }
+}
+?>

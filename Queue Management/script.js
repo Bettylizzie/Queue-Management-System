@@ -1,99 +1,166 @@
 document.addEventListener("DOMContentLoaded", function () {
-    loadQueue();
-
-    // Load the queue dynamically for the admin page
+    // Main queue management functions
     function loadQueue() {
-        fetch("http://localhost/Queue%20Management%20system/php/get_queue.php")
-            .then(response => response.json())
+        fetch("php/get_queue.php")
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
-                let queueTable = document.getElementById("queue-list").getElementsByTagName("tbody")[0];
+                const queueTable = document.getElementById("queue-list")?.getElementsByTagName("tbody")[0];
+                if (!queueTable) return; // Skip if not on admin page
+
                 queueTable.innerHTML = ""; // Clear table first
 
                 data.forEach(customer => {
-                    let row = `
-                        <tr>
-                            <td>${customer.name}</td>
-                            <td>${customer.phone}</td>
-                            <td>${customer.created_at}</td>
-                            <td><button class="call-btn" data-id="${customer.id}">Call</button></td>
-                        </tr>
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${escapeHtml(customer.name)}</td>
+                        <td>${escapeHtml(customer.phone)}</td>
+                        <td>${customer.status || 'Waiting'}</td>
+                        <td>${customer.created_at}</td>
+                        <td>
+                            <button class="call-btn" data-id="${customer.id}">Call</button>
+                            <button class="complete-btn" data-id="${customer.id}">Complete</button>
+                        </td>
                     `;
-                    queueTable.innerHTML += row;
+                    queueTable.appendChild(row);
                 });
 
                 attachCallButtons();
+                attachCompleteButtons();
+            })
+            .catch(error => {
+                console.error("Error loading queue:", error);
+                showMessage("Error loading queue. Please refresh the page.", "error");
             });
     }
 
-    // Attach event listener to call buttons
     function attachCallButtons() {
         document.querySelectorAll(".call-btn").forEach(button => {
             button.addEventListener("click", function () {
-                let customerId = this.getAttribute("data-id");
-                callNextCustomer(customerId);
+                const customerId = this.getAttribute("data-id");
+                updateCustomerStatus(customerId, "Called");
             });
         });
     }
 
-    // Call next customer when button is clicked
-    function callNextCustomer(customerId) {
-        fetch(`http://localhost/Queue%20Management%20system/php/next_customer.php?id=${customerId}`)
+    function attachCompleteButtons() {
+        document.querySelectorAll(".complete-btn").forEach(button => {
+            button.addEventListener("click", function () {
+                const customerId = this.getAttribute("data-id");
+                updateCustomerStatus(customerId, "Completed");
+            });
+        });
+    }
+
+    function updateCustomerStatus(customerId, status) {
+        fetch("php/update_status.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: `id=${customerId}&status=${status}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage(`Customer marked as ${status}: ${data.name}`, "success");
+                loadQueue();
+            } else {
+                showMessage(data.message || "Error updating status", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Error updating status:", error);
+            showMessage("Network error. Please try again.", "error");
+        });
+    }
+
+    // Customer form handling
+    const joinForm = document.getElementById("joinQueueForm");
+    if (joinForm) {
+        joinForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const name = document.getElementById("name").value.trim();
+            const phone = document.getElementById("phone").value.trim();
+
+            if (!validateInput(name, phone)) {
+                showMessage("Please enter valid name and phone number", "error");
+                return;
+            }
+
+            fetch("php/join_queue.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: `name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`
+            })
             .then(response => response.json())
             .then(data => {
-                if (data.message) {
-                    alert(data.message); // No customers left
+                if (data.success) {
+                    showMessage("You have successfully joined the queue!", "success");
+                    joinForm.reset();
                 } else {
-                    alert("Calling: " + data.name);
-                    loadQueue(); // Refresh queue after calling
+                    showMessage(data.message || "Error joining the queue", "error");
                 }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                showMessage("Network issue or server error. Please try again.", "error");
             });
+        });
     }
 
-// Form submission to join the queue
-document.getElementById("joinQueueForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-
-    // Get values from form
-    const name = document.getElementById("name").value.trim();
-    const phone = document.getElementById("phone").value.trim();
-    const successMessage = document.getElementById("successMessage");
-
-    // Validate inputs
-    if (name === "" || phone === "") {
-        successMessage.innerHTML = "Please enter both name and phone number.";
-        successMessage.style.color = "red";
-        return;
+    // Helper functions
+    function showMessage(message, type) {
+        const messageElement = document.getElementById("successMessage") || createMessageElement();
+        messageElement.textContent = message;
+        messageElement.className = `message ${type}`;
     }
 
-    // Send data to server (join_queue.php)
-    fetch("php/join_queue.php", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: `name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Server Response:", data); // Debugging
+    function createMessageElement() {
+        const element = document.createElement("div");
+        element.id = "successMessage";
+        element.className = "message";
+        document.querySelector(".form-container")?.appendChild(element);
+        return element;
+    }
 
-        if (data.success) {
-            successMessage.innerHTML = "You have successfully joined the queue!";
-            successMessage.style.color = "green";
+    function validateInput(name, phone) {
+        return name.length > 0 && /^[\d\s\-()+]{8,}$/.test(phone);
+    }
 
-            // Clear input fields after successful submission
-            document.getElementById("name").value = "";
-            document.getElementById("phone").value = "";
-        } else {
-            successMessage.innerHTML = data.message || "Error joining the queue. Please try again!";
-            successMessage.style.color = "red";
-        }
-    })
-    .catch(error => {
-        console.error("Fetch error:", error);
-        successMessage.innerHTML = "Network error. Please check your connection.";
-        successMessage.style.color = "red";
-    });
-});
+    function escapeHtml(unsafe) {
+        return unsafe?.toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;") || '';
+    }
 
+    // Initialize
+    loadQueue();
+    if (document.getElementById("call-next")) {
+        document.getElementById("call-next").addEventListener("click", function() {
+            const firstWaiting = document.querySelector(".call-btn");
+            if (firstWaiting) {
+                updateCustomerStatus(firstWaiting.getAttribute("data-id"), "Called");
+            } else {
+                showMessage("No customers in queue", "info");
+            }
+        });
+    }
+
+    // Expose functions for admin.html
+    window.queueFunctions = {
+        loadQueue,
+        attachCallButtons,
+        updateCustomerStatus
+    };
 });
