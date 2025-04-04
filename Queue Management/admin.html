@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Queue Management</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h2>Queue Management</h2>
+    <table id="queue-list">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Time Joined</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Dynamic queue rows will be loaded here -->
+        </tbody>
+    </table>
+    <button id="call-next">Call Next Customer</button>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            loadQueue();
+
+            // Load the queue dynamically
+            function loadQueue() {
+                fetch("http://localhost/Queue%20Management%20system/php/get_queue.php")
+                    .then(response => response.json())
+                    .then(data => {
+                        let queueTable = document.getElementById("queue-list").getElementsByTagName('tbody')[0];
+                        queueTable.innerHTML = ""; // Clear table first
+                        
+                        data.forEach(customer => {
+                            let row = `
+                                <tr>
+                                    <td>${customer.name}</td>
+                                    <td>${customer.phone}</td>
+                                    <td>${customer.created_at}</td>
+                                    <td><button class="call-btn" data-id="${customer.id}">Call</button></td>
+                                </tr>
+                            `;
+                            queueTable.innerHTML += row;
+                        });
+
+                        attachCallButtons();
+                    });
+            }
+
+            // Attach event listener to call buttons
+            function attachCallButtons() {
+                document.querySelectorAll(".call-btn").forEach(button => {
+                    button.addEventListener("click", function () {
+                        let customerId = this.getAttribute("data-id");
+                        callNextCustomer(customerId);
+                    });
+                });
+            }
+
+            // Call next customer when button is clicked
+            function callNextCustomer(customerId) {
+                fetch("http://localhost/Queue%20Management%20system/php/next_customer.php?id=" + customerId)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.message) {
+                            alert(data.message); // No customers left
+                        } else {
+                            alert("Calling: " + data.name);
+                            loadQueue(); // Refresh queue after calling
+                        }
+                    });
+            }
+
+            // Call Next button action
+            document.getElementById("call-next").addEventListener("click", function () {
+                callNextCustomer(); // Here, you may want to adjust to handle the logic to get the next customer properly
+            });
+
+            setInterval(loadQueue, 5000); // Auto-refresh queue every 5 seconds
+        });
+    </script>
+</body>
+</html>
