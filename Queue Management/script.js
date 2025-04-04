@@ -145,17 +145,63 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Initialize
-    loadQueue();
-    if (document.getElementById("call-next")) {
-        document.getElementById("call-next").addEventListener("click", function() {
-            const firstWaiting = document.querySelector(".call-btn");
-            if (firstWaiting) {
-                updateCustomerStatus(firstWaiting.getAttribute("data-id"), "Called");
-            } else {
-                showMessage("No customers in queue", "info");
+  // In the loadQueue function in admin.html
+function loadQueue() {
+    fetch("php/get_queue.php")
+        .then(response => {
+            if (!response.ok) throw new Error("Network response was not ok");
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                console.error("Server error:", data.error);
+                return;
             }
+            
+            let queueTable = document.getElementById("queue-list").getElementsByTagName('tbody')[0];
+            queueTable.innerHTML = "";
+            
+            if (data.length === 0) {
+                queueTable.innerHTML = `<tr><td colspan="5" class="empty-queue">No customers currently in queue</td></tr>`;
+                return;
+            }
+            
+            // Rest of your row generation code
+        })
+        .catch(error => {
+            console.error("Error loading queue:", error);
+            document.getElementById("queue-list").getElementsByTagName('tbody')[0].innerHTML = 
+                `<tr><td colspan="5" class="error-message">Error loading queue data</td></tr>`;
         });
+}
+    // Remove this misplaced block as it is redundant and improperly placed.
+
+    // Add these new functions to script.js
+    function updateQueueStatus() {
+        fetch("php/get_queue.php?stats_only=true")
+            .then(response => response.json())
+            .then(data => {
+                if (data.stats) {
+                    document.getElementById("waiting-count").textContent = data.stats.waiting;
+                    document.getElementById("called-count").textContent = data.stats.called;
+                    document.getElementById("completed-count").textContent = data.stats.completed;
+                }
+            })
+            .catch(error => console.error("Error updating status:", error));
     }
+
+    function fetchQueuePosition(queueId) {
+        fetch(`php/get_position.php?id=${queueId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.position) {
+                    const positionMsg = document.getElementById("position-message");
+                    positionMsg.textContent = `Your position in queue: ${data.position}`;
+                    positionMsg.style.display = "block";
+                }
+            });
+    }
+    
 
     // Expose functions for admin.html
     window.queueFunctions = {

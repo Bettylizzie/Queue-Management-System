@@ -191,3 +191,65 @@ button.call-btn:hover {
         padding: 10px 8px;
     }
 }
+/* Add to styles.css */
+.empty-queue {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-style: italic;
+}
+
+.error-message {
+    text-align: center;
+    padding: 20px;
+    color: var(--error-color);
+    font-weight: bold;
+}
+
+#position-message {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 15px;
+    display: none;
+}
+/* Add these to your existing styles */
+.status-waiting { color: #ffc107; font-weight: bold; }
+.status-called { color: #17a2b8; font-weight: bold; }
+.status-completed { color: #28a745; font-weight: bold; }
+
+.status-counter.updated {
+    animation: pulse 1s;
+    color: #218838;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.empty-queue {
+    text-align: center;
+    padding: 20px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.error-message {
+    text-align: center;
+    padding: 20px;
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.error-message button {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 5px 15px;
+    border-radius: 4px;
+    margin-top: 10px;
+    cursor: pointer;
+}
