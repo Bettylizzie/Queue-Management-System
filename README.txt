@@ -80,14 +80,10 @@ Open phpMyAdmin (or MySQL CLI).
 Create a database:
 
 sql
-Copy
-Edit
 CREATE DATABASE queue_system;
 Select the database and create the queue table:
 
 sql
-Copy
-Edit
 CREATE TABLE queue (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -100,8 +96,6 @@ Place all PHP files (db_connect.php, join_queue.php, get_queue.php, next_custome
 Ensure db_connect.php contains the correct database credentials:
 
 php
-Copy
-Edit
 $servername = "localhost";
 $username = "root";
 $password = "";
